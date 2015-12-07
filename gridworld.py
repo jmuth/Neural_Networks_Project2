@@ -2,10 +2,6 @@ from pylab import *
 import numpy
 from time import sleep
 
-def r(x, y, sx, sy):
-    sigma = 0.5
-    return numpy.exp(-(pow(x - sx, 2.0) + pow(y - sy, 2.0)) / (2.0 * pow(sigma, 2.0)))
-
 class Gridworld:
     """
     A class that implements a quadratic NxN gridworld.
@@ -34,6 +30,8 @@ class Gridworld:
 
         # gridworld size
         self.N = N
+
+        self.worldWidth = 1.0
 
         # reward location
         self.reward_position = reward_position
@@ -67,6 +65,10 @@ class Gridworld:
         self.step_size = 0.03
         # initialize the Q-values etc.
         self._init_run()
+        self.sigma = self.worldWidth / self.N
+
+    def r(self, x, y, sx, sy):
+        return numpy.exp(-(pow(x - sx, 2.0) + pow(y - sy, 2.0)) / (2.0 * pow(self.sigma, 2.0)))
 
     def run(self,N_trials=10,N_runs=1):
         self.latencies = zeros(N_trials)
@@ -78,6 +80,7 @@ class Gridworld:
             #latencies = self._learn_run()
             self.latencies += latencies/N_runs
             print "Number of steps: ", latencies
+            print "Neurons: ", self.w
         print "Mean number of steps: ", self.latencies     
 
     def visualize_trial(self):
@@ -191,7 +194,7 @@ class Gridworld:
         # initialize the Q-values and the eligibility trace
         #self.Q = 0.01 * numpy.random.rand(self.N, self.N, 8) + 0.1
         self.e = numpy.zeros((self.N, self.N, 8))
-        self.w = numpy.zeros((self.N, self.N, 8))
+        self.w = numpy.zeros((self.N, self.N, 8)) + 0.1
 
         # list that contains the times it took the agent to reach the target for all trials
         # serves to track the progress of learning
@@ -218,7 +221,7 @@ class Gridworld:
             # run a trial and store the time it takes to the target
             latency = self._run_trial()
             self.latency_list.append(latency)
-            #self.epsilon = max(0.99 * self.epsilon, 0.001)
+            self.epsilon = max(0.99 * self.epsilon, 0.001)
             print "e: ", self.epsilon, " n of steps: ", latency
 
         return array(self.latency_list)
@@ -265,7 +268,7 @@ class Gridworld:
                 self._visualize_current_state()
 
             latency = latency + 1
-            if latency > 10000:
+            if latency > 1000:
                 break
             #sleep(0.2)
 
@@ -281,7 +284,7 @@ class Gridworld:
         # iterates over every cells
         for x in range(self.N):
             for y in range(self.N):
-                acc += r(x, y, sx, sy) * self.w[x, y, a]
+                acc += self.r(x, y, sx, sy) * self.w[x, y, a]
         return acc       
 
 
@@ -310,7 +313,7 @@ class Gridworld:
         self.e = self.gamma * self.lambda_eligibility * self.e
         for x in range(self.N):
             for y in range(self.N): 
-                self.e[x, y, self.action_old] += r(x , y, self.x_position_old, self.y_position_old)
+                self.e[x, y, self.action_old] += self.r(x , y, self.x_position_old, self.y_position_old)
 
         # Compute the detla
         delta = self._reward() \
@@ -407,12 +410,12 @@ class Gridworld:
             y_position = self.y_position
 
         # check of the agent is trying to leave the gridworld
-        if x_position < 0 or x_position >= self.N or y_position < 0 or y_position >= self.N:
+        if x_position < 0 or x_position >= self.worldWidth or y_position < 0 or y_position >= self.worldWidth:
             return True
 
         # check if the agent has bumped into an obstacle in the room
         if self.obstacle:
-            if y_position == self.N/2 and x_position>self.N/2:
+            if y_position == self.worldWidth / 2 and x_position> worldWidth / 2:
                 return True
 
         # if none of the above is the case, this position is not a wall
@@ -475,6 +478,6 @@ class Gridworld:
         close()
 
 if __name__ == '__main__':
-    grid = Gridworld(1)
+    grid = Gridworld(10)
     print "Run the game"
     grid.run(500,3)
