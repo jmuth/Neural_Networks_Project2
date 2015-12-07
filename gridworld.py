@@ -3,7 +3,7 @@ import numpy
 from time import sleep
 
 def r(x, y, sx, sy):
-    sigma = 0.05
+    sigma = 0.5
     return numpy.exp(-(pow(x - sx, 2.0) + pow(y - sy, 2.0)) / (2.0 * pow(sigma, 2.0)))
 
 class Gridworld:
@@ -20,7 +20,7 @@ class Gridworld:
     navigation_map()   : Plot the movement direction with the highest Q-value for all positions.
     """
 
-    def __init__(self,N,reward_position=(0.8, 0.8),obstacle=False, lambda_eligibility=0.0):
+    def __init__(self,N,reward_position=(0.8, 0.8),obstacle=False, lambda_eligibility=0.95):
         """
         Creates a quadratic NxN gridworld.
 
@@ -41,19 +41,19 @@ class Gridworld:
         # reward administered t the target location and when
         # bumping into walls
         self.reward_at_target = 10.
-        self.reward_at_wall   = -0.5
+        self.reward_at_wall   = -2
 
         # probability at which the agent chooses a random
         # action. This makes sure the agent explores the grid.
-        self.epsilon = 0.7
-
+        self.start_epsilon = 0.5
+        self.epsilon = self.start_epsilon
         # learning rate
-        self.eta = 0.88
+        self.eta = 0.005
 
         # discount factor - quantifies how far into the future
         # a reward is still considered important for the
         # current action
-        self.gamma = 0.7
+        self.gamma = 0.95
 
         # the decay factor for the eligibility trace the
         # default is 0., which corresponds to no eligibility
@@ -63,7 +63,7 @@ class Gridworld:
         # is there an obstacle in the room?
         self.obstacle = obstacle
 
-        self.reward_radius = 0.5
+        self.reward_radius = 0.1
         self.step_size = 0.03
         # initialize the Q-values etc.
         self._init_run()
@@ -72,7 +72,7 @@ class Gridworld:
         self.latencies = zeros(N_trials)
 
         for run in range(N_runs):
-            self.epsilon = 0.8
+            self.epsilon = self.start_epsilon
             self._init_run()
             latencies = self._learn_run(N_trials=N_trials)
             #latencies = self._learn_run()
@@ -218,8 +218,8 @@ class Gridworld:
             # run a trial and store the time it takes to the target
             latency = self._run_trial()
             self.latency_list.append(latency)
-            self.epsilon = max(0.99 * self.epsilon, 0.001)
-            print self.epsilon
+            #self.epsilon = max(0.99 * self.epsilon, 0.001)
+            print "e: ", self.epsilon, " n of steps: ", latency
 
         return array(self.latency_list)
 
@@ -265,6 +265,8 @@ class Gridworld:
                 self._visualize_current_state()
 
             latency = latency + 1
+            if latency > 10000:
+                break
             #sleep(0.2)
 
         if visualize:
@@ -275,13 +277,11 @@ class Gridworld:
         """
         Q cannot be stored so we have to compute it online using the w's
         """
-        val = numpy.zeros(8)
-
         acc = 0.0
         # iterates over every cells
         for x in range(self.N):
             for y in range(self.N):
-                acc += r(x, y, self.x_position, self.y_position) * self.w[x, y, a]
+                acc += r(x, y, sx, sy) * self.w[x, y, a]
         return acc       
 
 
@@ -308,7 +308,9 @@ class Gridworld:
         
         # TOCHECK update the eligibility trace
         self.e = self.gamma * self.lambda_eligibility * self.e
-        self.e[self.x_position_old, self.y_position_old,self.action_old] += 1.
+        for x in range(self.N):
+            for y in range(self.N): 
+                self.e[x, y, self.action_old] += r(x , y, self.x_position_old, self.y_position_old)
 
         # Compute the detla
         delta = self._reward() \
@@ -329,7 +331,7 @@ class Gridworld:
         if numpy.random.rand() < self.epsilon:
             self.action = numpy.random.randint(8)
         else:
-            maxExpR = -1.0
+            maxExpR = -9999999999999
             bestAction = -1
             for a in range(8):
                 temp = self._compute_Q(self.x_position, self.y_position, a)
@@ -355,7 +357,7 @@ class Gridworld:
             return self.reward_at_target
 
         if self._wall_touch:
-            #print "Bumped into the wall -> -0.5 reward"
+            #print "Bumped into the wall -> -2 reward"
             return self.reward_at_wall
         else:
             return 0.
@@ -388,8 +390,7 @@ class Gridworld:
         else:
             self._wall_touch = False
 
-        #print "X: ", self.x_position
-        #print "Y: ", self.y_position
+        #print "Action ",self.action, " X: ", self.x_position, " Y: ", self.y_position
         #raw_input()
 
     def _is_wall(self,x_position=None,y_position=None):
@@ -474,6 +475,6 @@ class Gridworld:
         close()
 
 if __name__ == '__main__':
-    grid = Gridworld(4)
+    grid = Gridworld(1)
     print "Run the game"
     grid.run(500,3)
