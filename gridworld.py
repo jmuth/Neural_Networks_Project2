@@ -66,6 +66,7 @@ class Gridworld:
         # initialize the Q-values etc.
         self._init_run()
         self.sigma = self.worldWidth / self.N
+        print "Sigma: ", self.sigma
 
     def r(self, x, y, sx, sy):
         return numpy.exp(-(pow(x - sx, 2.0) + pow(y - sy, 2.0)) / (2.0 * pow(self.sigma, 2.0)))
@@ -81,6 +82,7 @@ class Gridworld:
             self.latencies += latencies/N_runs
             print "Number of steps: ", latencies
             print "Neurons: ", self.w
+            self.navigation_map()
         print "Mean number of steps: ", self.latencies     
 
     def visualize_trial(self):
@@ -131,10 +133,20 @@ class Gridworld:
         Plot the direction with the highest Q-value for every position.
         Useful only for small gridworlds, otherwise the plot becomes messy.
         """
+        print "Naviagation map"
         self.x_direction = numpy.zeros((self.N,self.N))
         self.y_direction = numpy.zeros((self.N,self.N))
 
-        self.actions = argmax(self.Q[:,:,:],axis=2)
+        # First compute the table of Q's
+        tempQ = 0.01 * numpy.random.rand(self.N, self.N, 8)
+        print "-- Computing the Q's for the navigation map"
+        for x in range(self.N):
+            for y in range(self.N):
+                for a in range(8):
+                    tempQ[x, y, a] = self._compute_Q(x, y, a)
+
+        print "-- Compute actions"
+        self.actions = argmax(tempQ[:,:,:],axis=2)
         self.y_direction[self.actions==0] = 1.
         self.y_direction[self.actions==1] = -1.
         self.y_direction[self.actions==2] = 0.
@@ -145,9 +157,16 @@ class Gridworld:
         self.x_direction[self.actions==2] = 1.
         self.x_direction[self.actions==3] = -1.
 
+        print "-- figure:"
         figure()
         quiver(self.x_direction,self.y_direction)
         axis([-0.5, self.N - 0.5, -0.5, self.N - 0.5])
+
+        show()
+        print "--it's shown"
+
+        raw_input()
+        close()
 
     def reset(self):
         """
@@ -155,8 +174,8 @@ class Gridworld:
 
         Instant amnesia -  the agent forgets everything he has learned before
         """
-        #self.Q = numpy.random.rand(self.N,self.N,4)
-        self.w = numpy.zeros.rand(self.N,self.N,4)
+        #self.Q = numpy.random.rand(self.N,self.N, 8)
+        self.w = numpy.zeros.rand(self.N,self.N, 8)
         self.latency_list = []
 
     def plot_Q(self):
@@ -194,7 +213,7 @@ class Gridworld:
         # initialize the Q-values and the eligibility trace
         #self.Q = 0.01 * numpy.random.rand(self.N, self.N, 8) + 0.1
         self.e = numpy.zeros((self.N, self.N, 8))
-        self.w = numpy.zeros((self.N, self.N, 8)) + 0.1
+        self.w = numpy.zeros((self.N, self.N, 8))
 
         # list that contains the times it took the agent to reach the target for all trials
         # serves to track the progress of learning
@@ -241,13 +260,6 @@ class Gridworld:
         self.x_position = 0.1
         self.y_position = 0.1
         
-        # choose the initial position and make sure that its not in the wall
-        #while True:
-        #    self.x_position = numpy.random.randint(self.N)
-        #    self.y_position = numpy.random.randint(self.N)
-        #    if not self._is_wall(self.x_position,self.y_position):
-        #        break
-
         # initialize the latency (time to reach the target) for this trial
         latency = 0.
 
@@ -268,7 +280,7 @@ class Gridworld:
                 self._visualize_current_state()
 
             latency = latency + 1
-            if latency > 1000:
+            if latency > 10000:
                 break
             #sleep(0.2)
 
@@ -334,7 +346,7 @@ class Gridworld:
         if numpy.random.rand() < self.epsilon:
             self.action = numpy.random.randint(8)
         else:
-            maxExpR = -9999999999999
+            maxExpR = -sys.maxint - 1
             bestAction = -1
             for a in range(8):
                 temp = self._compute_Q(self.x_position, self.y_position, a)
@@ -478,6 +490,9 @@ class Gridworld:
         close()
 
 if __name__ == '__main__':
-    grid = Gridworld(10)
+    grid = Gridworld(2)
     print "Run the game"
-    grid.run(500,3)
+    grid.run(500,10)
+
+
+# In order to decrease computation, check if $w_i$ == 0 or if manhattan distance is two big, then we can skip computation
