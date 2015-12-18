@@ -46,7 +46,7 @@ class Gridworld:
         self.start_epsilon = 0.5
         self.epsilon = self.start_epsilon
         # learning rate
-        self.eta = 0.005
+        self.eta = 0.05
 
         # discount factor - quantifies how far into the future
         # a reward is still considered important for the
@@ -69,7 +69,14 @@ class Gridworld:
         print "Sigma: ", self.sigma
 
     def r(self, x, y, sx, sy):
-        return numpy.exp(-(pow(x - sx, 2.0) + pow(y - sy, 2.0)) / (2.0 * pow(self.sigma, 2.0)))
+        # First we transform grid coordinates into world coordinates
+        x_temp = x * self.sigma
+        y_temp = y * self.sigma
+        #print "r: ", x_temp, " , ", y_temp , " , ", sx , " , ", sy
+        val = numpy.exp(-(pow(x_temp - sx, 2.0) + pow(y_temp - sy, 2.0)) / (2.0 * pow(self.sigma, 2.0)))
+        #print val
+        #raw_input()
+        return val
 
     def run(self,N_trials=10,N_runs=1):
         self.latencies = zeros(N_trials)
@@ -83,6 +90,7 @@ class Gridworld:
             print "Number of steps: ", latencies
             print "Neurons: ", self.w
             self.navigation_map()
+            self.learning_curve()
         print "Mean number of steps: ", self.latencies     
 
     def visualize_trial(self):
@@ -146,16 +154,27 @@ class Gridworld:
                     tempQ[x, y, a] = self._compute_Q(x, y, a)
 
         print "-- Compute actions"
+        tempQ = self.w
         self.actions = argmax(tempQ[:,:,:],axis=2)
-        self.y_direction[self.actions==0] = 1.
-        self.y_direction[self.actions==1] = -1.
-        self.y_direction[self.actions==2] = 0.
-        self.y_direction[self.actions==3] = 0.
+        print self.actions
+        self.x_direction[self.actions==0] = 1.
+        self.x_direction[self.actions==1] = 0.5
+        self.x_direction[self.actions==2] = 0.
+        self.x_direction[self.actions==3] = -0.5
+        self.x_direction[self.actions==4] = -1.
+        self.x_direction[self.actions==5] = -0.5
+        self.x_direction[self.actions==6] = 0.
+        self.x_direction[self.actions==7] = 0.5
 
-        self.x_direction[self.actions==0] = 0.
-        self.x_direction[self.actions==1] = 0.
-        self.x_direction[self.actions==2] = 1.
-        self.x_direction[self.actions==3] = -1.
+
+        self.y_direction[self.actions==0] = 0.
+        self.y_direction[self.actions==1] = 0.5
+        self.y_direction[self.actions==2] = 1.
+        self.y_direction[self.actions==3] = 0.5
+        self.y_direction[self.actions==4] = 0.
+        self.y_direction[self.actions==5] = -0.5
+        self.y_direction[self.actions==6] = -1.
+        self.y_direction[self.actions==7] = -0.5
 
         print "-- figure:"
         figure()
@@ -240,8 +259,10 @@ class Gridworld:
             # run a trial and store the time it takes to the target
             latency = self._run_trial()
             self.latency_list.append(latency)
-            self.epsilon = max(0.99 * self.epsilon, 0.001)
+            self.epsilon = max(0.996 * self.epsilon, 0.001)
             print "e: ", self.epsilon, " n of steps: ", latency
+            #self.navigation_map()
+
 
         return array(self.latency_list)
 
@@ -280,7 +301,9 @@ class Gridworld:
                 self._visualize_current_state()
 
             latency = latency + 1
-            if latency > 10000:
+            if latency > 3000:
+                print "Position: (", self.x_position, ",", self.y_position, ")"
+            if latency > 2900:
                 break
             #sleep(0.2)
 
@@ -296,7 +319,12 @@ class Gridworld:
         # iterates over every cells
         for x in range(self.N):
             for y in range(self.N):
-                acc += self.r(x, y, sx, sy) * self.w[x, y, a]
+                # Optimization, trying to skip some computations
+                #if (self.w[x, y, a] > 0):
+                if abs(x * self.sigma - sx) < 4 * self.sigma  and abs(y * self.sigma - sy) < 4 * self.sigma:
+                   acc += self.r(x, y, sx, sy) * self.w[x, y, a]
+                   #print x* self.sigma, y* self.sigma, sx, sy
+        #print "Computed Q: ", acc, " pos: (", self.x_position, ",",self.y_position, ")"
         return acc       
 
 
@@ -490,9 +518,12 @@ class Gridworld:
         close()
 
 if __name__ == '__main__':
-    grid = Gridworld(2)
+    grid = Gridworld(20)
     print "Run the game"
-    grid.run(500,10)
+    grid.run(200,1)
 
 
-# In order to decrease computation, check if $w_i$ == 0 or if manhattan distance is two big, then we can skip computation
+# J'ai fait une petite optimization, il prend en compte que les neurons proche 
+# au lieux de tout le temps calculer la gaussienne, sinon ca prend trop de temp avec 400 neurons.
+
+# Navigation map affiche pour chaque neuron la direction prefere, je crois pas que c'est encore top.
