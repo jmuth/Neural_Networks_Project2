@@ -69,7 +69,7 @@ class Gridworld:
         for run in range(N_runs):
             self._init_run()
             #call reset() to reset Q-values and latencies, ie forget all he learnt 
-            self.reset()
+            #self.reset()
             latencies = self._learn_run(N_trials=N_trials)
             self.latencies += latencies/N_runs
 
