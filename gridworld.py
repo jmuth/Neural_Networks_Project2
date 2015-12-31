@@ -2,6 +2,30 @@ from pylab import *
 import numpy
 from time import sleep
 
+def printInFile(filename, datas):
+    """
+    Print latencies and everything in a file
+    """
+
+    f = open("data/" + filename + ".txt", "w")
+    for data in datas:
+        f.write( str(data) + "\n")   # str() converts to string
+    f.close()
+
+def printPathInFile(filename, pathes):
+    """
+    Print pathes in a file
+    """
+
+    path = pathes[0]
+
+    for i in range(len(pathes)):
+        f = open("data/" + filename + str(i) + ".txt", "w")
+        for pos in pathes[i]:
+            f.write( str(pos[0]) + " " + str(pos[1]) +  "\n")   # str() converts to string
+        f.close()
+
+
 class Gridworld:
     """
     A class that implements a quadratic NxN gridworld.
@@ -43,7 +67,7 @@ class Gridworld:
 
         # probability at which the agent chooses a random
         # action. This makes sure the agent explores the grid.
-        self.start_epsilon = 0.5
+        self.start_epsilon = 0.1
         self.epsilon = self.start_epsilon
         # learning rate
         self.eta = 0.05
@@ -68,6 +92,7 @@ class Gridworld:
         self.sigma = self.worldWidth / self.N
         print "Sigma: ", self.sigma
 
+    #cont
     def r(self, x, y, sx, sy):
         # First we transform grid coordinates into world coordinates
         x_temp = x * self.sigma
@@ -80,6 +105,7 @@ class Gridworld:
 
     def run(self,N_trials=10,N_runs=1):
         self.latencies = zeros(N_trials)
+        self.pathes = []
 
         for run in range(N_runs):
             self.epsilon = self.start_epsilon
@@ -89,9 +115,13 @@ class Gridworld:
             self.latencies += latencies/N_runs
             print "Number of steps: ", latencies
             print "Neurons: ", self.w
+            printInFile("latencies", latencies)
+            printPathInFile("pathes", self.pathes)
             self.navigation_map()
             self.learning_curve()
-        print "Mean number of steps: ", self.latencies     
+        print "Mean number of steps: ", self.latencies 
+
+
 
     def visualize_trial(self):
         """
@@ -184,8 +214,8 @@ class Gridworld:
         show()
         print "--it's shown"
 
-        raw_input()
-        close()
+        #raw_input()
+        #close()
 
     def reset(self):
         """
@@ -242,6 +272,7 @@ class Gridworld:
         self.x_position = None
         self.y_position = None
         self.action = None
+        self.path = [] #where pass the mouse
 
     def _learn_run(self,N_trials=10):
         """
@@ -258,8 +289,10 @@ class Gridworld:
         for trial in range(N_trials):
             # run a trial and store the time it takes to the target
             latency = self._run_trial()
+            self.pathes.append(self.path)
+            self.path = []
             self.latency_list.append(latency)
-            self.epsilon = max(0.996 * self.epsilon, 0.001)
+            #self.epsilon = max(0.996 * self.epsilon, 0.001)
             print "e: ", self.epsilon, " n of steps: ", latency
             #self.navigation_map()
 
@@ -294,6 +327,7 @@ class Gridworld:
         while not self._arrived():
         #    print "Step: "
             self._update_state()
+            self.path.append([self.x_position, self.y_position])
             self._choose_action()
         #    print "Action -> ", self.action
             self._update_W()
@@ -301,9 +335,9 @@ class Gridworld:
                 self._visualize_current_state()
 
             latency = latency + 1
-            if latency > 3000:
-                print "Position: (", self.x_position, ",", self.y_position, ")"
-            if latency > 2900:
+            # if latency > 3000:
+            #     print "Position: (", self.x_position, ",", self.y_position, ")"
+            if latency > 1000:
                 break
             #sleep(0.2)
 
@@ -311,6 +345,7 @@ class Gridworld:
             self._close_visualization()
         return latency
 
+    #cont
     def _compute_Q(self, sx, sy, a):
         """
         Q cannot be stored so we have to compute it online using the w's
@@ -344,6 +379,7 @@ class Gridworld:
                 - ( self.Q[self.x_position_old,self.y_position_old,self.action_old] \
                 - self.gamma * self.Q[self.x_position, self.y_position, self.action] )  )
 
+    #cont
     def _update_W(self):
         """
         Update the weights in the neural network.
@@ -520,10 +556,14 @@ class Gridworld:
 if __name__ == '__main__':
     grid = Gridworld(20)
     print "Run the game"
-    grid.run(200,1)
+    grid.run(50,1)
+
 
 
 # J'ai fait une petite optimization, il prend en compte que les neurons proche 
 # au lieux de tout le temps calculer la gaussienne, sinon ca prend trop de temp avec 400 neurons.
 
 # Navigation map affiche pour chaque neuron la direction prefere, je crois pas que c'est encore top.
+
+
+
