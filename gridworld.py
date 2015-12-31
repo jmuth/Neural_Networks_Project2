@@ -67,7 +67,7 @@ class Gridworld:
 
         # probability at which the agent chooses a random
         # action. This makes sure the agent explores the grid.
-        self.start_epsilon = 0.1
+        self.start_epsilon = 0.5
         self.epsilon = self.start_epsilon
         # learning rate
         self.eta = 0.05
@@ -76,6 +76,8 @@ class Gridworld:
         # a reward is still considered important for the
         # current action
         self.gamma = 0.95
+
+        self.reward_list = []
 
         # the decay factor for the eligibility trace the
         # default is 0., which corresponds to no eligibility
@@ -88,6 +90,7 @@ class Gridworld:
         self.reward_radius = 0.1
         self.step_size = 0.03
         # initialize the Q-values etc.
+        self.reward = 0.0;
         self._init_run()
         self.sigma = self.worldWidth / self.N
         print "Sigma: ", self.sigma
@@ -116,6 +119,7 @@ class Gridworld:
             print "Number of steps: ", latencies
             print "Neurons: ", self.w
             printInFile("latencies", latencies)
+            printInFile("rewards", self.reward_list)
             printPathInFile("pathes", self.pathes)
             self.navigation_map()
             self.learning_curve()
@@ -288,11 +292,15 @@ class Gridworld:
         """
         for trial in range(N_trials):
             # run a trial and store the time it takes to the target
+            self.navigation_map()
             latency = self._run_trial()
             self.pathes.append(self.path)
             self.path = []
             self.latency_list.append(latency)
-            #self.epsilon = max(0.996 * self.epsilon, 0.001)
+            self.epsilon = max(0.996 * self.epsilon, 0.001)
+            print self.reward
+            self.reward_list.append(self.reward)
+            self.reward = 0.0
             print "e: ", self.epsilon, " n of steps: ", latency
             #self.navigation_map()
 
@@ -340,6 +348,9 @@ class Gridworld:
             if latency > 1000:
                 break
             #sleep(0.2)
+
+        if self._arrived:
+            self.reward += self.reward_at_target
 
         if visualize:
             self._close_visualization()
@@ -424,6 +435,7 @@ class Gridworld:
         Check if the agent has arrived.
         """
         distance = numpy.sqrt(pow(self.reward_position[0] - self.x_position, 2.0) + pow(self.reward_position[1] - self.y_position, 2.0))
+
         return distance <= self.reward_radius
 
     def _reward(self):
@@ -463,6 +475,7 @@ class Gridworld:
 
         # check if the agent has bumped into a wall.
         if self._is_wall():
+            self.reward += self.reward_at_wall
             self.x_position = self.x_position_old
             self.y_position = self.y_position_old
             self._wall_touch = True
